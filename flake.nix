@@ -1,0 +1,41 @@
+{
+  description = "pleme-notifications - Shared notification infrastructure for Pleme services";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    substrate = {
+      url = "github:pleme-io/substrate";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    crate2nix = {
+      url = "github:nix-community/crate2nix";
+      flake = false;
+    };
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { nixpkgs, substrate, crate2nix, fenix, ... }:
+    let
+      systems = [ "aarch64-darwin" "x86_64-linux" "aarch64-linux" ];
+
+      forEachSystem = f: nixpkgs.lib.genAttrs systems (system:
+        let
+          rustLibrary = import "${substrate}/lib/rust-library.nix" {
+            inherit system nixpkgs crate2nix;
+            nixLib = substrate;
+          };
+          result = rustLibrary {
+            name = "pleme-notifications";
+            src = ./.;
+          };
+        in f result
+      );
+    in {
+      packages = forEachSystem (r: r.packages);
+      devShells = forEachSystem (r: r.devShells);
+      apps = forEachSystem (r: r.apps);
+    };
+}
